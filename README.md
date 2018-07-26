@@ -1,0 +1,3 @@
+# dupecheck
+
+file duplication checker.
