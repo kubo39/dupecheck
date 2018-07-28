@@ -1,13 +1,18 @@
 import core.stdc.stdlib : exit;
+import std.algorithm : map;
+import std.array : array;
 import std.concurrency;
 import std.digest : hexDigest;
 import std.digest.md : MD5;
 import std.file;
+import std.getopt;
+import std.range : iota;
 import std.stdio;
 import std.typecons : Tuple;
 
 enum DEFAULT_MIN_SIZE = 1;
 enum DEFAULT_MAX_SIZE = 10 * 1024; // 10K
+enum DEFAULT_WORKER_NUMS = 2;
 
 string calculateHash(string fileName)
 {
@@ -34,8 +39,12 @@ void calculator(Tid owner)
     }
 }
 
-void producer(Tid owner, scope string dirName, scope string pattern, Tid[] tids)
+void producer(Tid owner, scope string dirName, scope string pattern, size_t workerNums)
 {
+    Tid[] tids = 0.iota(workerNums)
+        .map!(_ => spawn(&calculator, owner) )
+        .array;
+
     ulong counter = 0;
 
     // Not follow symlink, uninteresting.
@@ -56,13 +65,50 @@ void producer(Tid owner, scope string dirName, scope string pattern, Tid[] tids)
         tid.send(true);
 }
 
+void usage()
+{
+    stderr.writeln(`dupecheck
+USAGE:
+ dupecheck [OPTIONS] directory pattern
+ OPTIONS:
+  -h --help   Display this message and exit.
+  --min-size  Minmal file size. (DEFAULT: 10K)
+  --max-size  Max file size. (DEFAULT: 1)
+  --workers   Num worker threads. (DEFAULT: 2)
+`);
+}
+
 void main(string[] args)
 {
+    bool help;
+    ulong minSize = DEFAULT_MIN_SIZE, maxSize = DEFAULT_MAX_SIZE;
+    size_t workerNums = DEFAULT_WORKER_NUMS;
+    args.getopt(
+        std.getopt.config.caseSensitive,
+        "h|help", &help,
+        "min-size", &minSize,
+        "max-size", &maxSize,
+        "workers", &workerNums
+        );
+
+    if (help)
+    {
+        usage();
+        exit(0);
+    }
+
     if (args.length < 3)
     {
         stderr.writeln("No directory and pattern found.");
         exit(1);
     }
+
+    if (minSize > maxSize)
+    {
+        stderr.writeln("max size must be greater than min size.");
+        exit(1);
+    }
+
     immutable dirName = args[1];
     immutable pattern = args[2]; // like "*.{d,di}"
     if (!dirName.isDir)
@@ -73,11 +119,7 @@ void main(string[] args)
 
     string[][string] map;
 
-    Tid[2] tids = [
-        spawn(&calculator, thisTid),
-        spawn(&calculator, thisTid)
-        ];
-    auto prod = spawn(&producer, thisTid, dirName, pattern, tids);
+    auto prod = spawn(&producer, thisTid, dirName, pattern, workerNums);
 
     uint counter = 0;
     bool flag = true;
@@ -93,7 +135,7 @@ void main(string[] args)
             },
             (bool _) {
                 counter++;
-                if (counter == tids.length)
+                if (counter == workerNums)
                     flag = false;
             },
             (Variant _) {
