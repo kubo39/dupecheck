@@ -109,6 +109,11 @@ void main(string[] args)
         exit(1);
     }
 
+    if (workerNums < 1)
+    {
+        workerNums = 1;
+    }
+
     immutable dirName = args[1];
     immutable pattern = args[2]; // like "*.{d,di}"
     if (!dirName.isDir)
