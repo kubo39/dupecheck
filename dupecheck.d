@@ -39,7 +39,8 @@ void calculator(Tid owner)
     }
 }
 
-void producer(Tid owner, scope string dirName, scope string pattern, size_t workerNums)
+void producer(Tid owner, scope string dirName, scope string pattern,
+              ulong minSize, ulong maxSize, size_t workerNums)
 {
     Tid[] tids = 0.iota(workerNums)
         .map!(_ => spawn(&calculator, owner) )
@@ -53,7 +54,7 @@ void producer(Tid owner, scope string dirName, scope string pattern, size_t work
         if (name.isFile)
         {
             auto size = name.getSize;
-            if (size >= DEFAULT_MIN_SIZE && size <= DEFAULT_MAX_SIZE)
+            if (size >= minSize && size <= maxSize)
             {
                 // Roundrobin.
                 tids[counter % tids.length].send(name);
@@ -124,7 +125,8 @@ void main(string[] args)
 
     string[][string] pairs;
 
-    auto prod = spawn(&producer, thisTid, dirName, pattern, workerNums);
+    auto prod = spawn(&producer, thisTid, dirName, pattern,
+                      minSize, maxSize, workerNums);
 
     uint counter = 0;
     bool flag = true;
