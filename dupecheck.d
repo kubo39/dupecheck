@@ -122,7 +122,7 @@ void main(string[] args)
         exit(1);
     }
 
-    string[][string] map;
+    string[][string] pairs;
 
     auto prod = spawn(&producer, thisTid, dirName, pattern, workerNums);
 
@@ -133,10 +133,10 @@ void main(string[] args)
         receive(
             (Tuple!(string, string) pair) {
                 // filename must be unique.
-                if (pair[0] !in map)
-                    map[pair[0]] = [pair[1]];
+                if (pair[0] !in pairs)
+                    pairs[pair[0]] = [pair[1]];
                 else
-                    map[pair[0]] ~= pair[1];
+                    pairs[pair[0]] ~= pair[1];
             },
             (bool _) {
                 counter++;
@@ -148,7 +148,7 @@ void main(string[] args)
             });
     }
 
-    foreach (_, v; map)
+    foreach (_, v; pairs)
     {
         if (v.length > 1)
             writeln(v);
