@@ -6,13 +6,13 @@ import std.digest : hexDigest;
 import std.digest.md : MD5;
 import std.file;
 import std.getopt;
+import std.parallelism : totalCPUs;
 import std.range : iota;
 import std.stdio;
 import std.typecons : Tuple;
 
 enum DEFAULT_MIN_SIZE = 1;
 enum DEFAULT_MAX_SIZE = 10 * 1024; // 10K
-enum DEFAULT_WORKER_NUMS = 2;
 
 string calculateHash(string fileName)
 {
@@ -74,7 +74,7 @@ USAGE:
   -h --help   Display this message and exit.
   --min-size  Minmal file size. (DEFAULT: 10K)
   --max-size  Max file size. (DEFAULT: 1)
-  --workers   Num worker threads. (DEFAULT: 2)
+  --workers   Num worker threads. (DEFAULT: number of logical processors)
 `);
 }
 
@@ -82,7 +82,7 @@ void main(string[] args)
 {
     bool help;
     ulong minSize = DEFAULT_MIN_SIZE, maxSize = DEFAULT_MAX_SIZE;
-    size_t workerNums = DEFAULT_WORKER_NUMS;
+    uint workerNums = totalCPUs;
     args.getopt(
         std.getopt.config.caseSensitive,
         "h|help", &help,
