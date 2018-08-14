@@ -66,6 +66,42 @@ void producer(Tid owner, scope string dirName, scope string pattern,
         tid.send(true);
 }
 
+void run(string dirName, string pattern, size_t minSize, size_t maxSize, size_t workerNums)
+{
+    string[][string] pairs;
+
+    auto prod = spawn(&producer, thisTid, dirName, pattern,
+                      minSize, maxSize, workerNums);
+
+    uint counter = 0;
+    bool flag = true;
+    while (flag)
+    {
+        receive(
+            (Tuple!(string, string) pair) {
+                // filename must be unique.
+                if (pair[0] !in pairs)
+                    pairs[pair[0]] = [pair[1]];
+                else
+                    pairs[pair[0]] ~= pair[1];
+            },
+            (bool _) {
+                counter++;
+                if (counter == workerNums)
+                    flag = false;
+            },
+            (Variant _) {
+                throw new Exception("Unexpected typed message.");
+            });
+    }
+
+    foreach (_, v; pairs)
+    {
+        if (v.length > 1)
+            writeln(v);
+    }
+}
+
 void usage()
 {
     stderr.writeln(`dupecheck
@@ -111,9 +147,7 @@ void main(string[] args)
     }
 
     if (workerNums < 1)
-    {
         workerNums = 1;
-    }
 
     immutable dirName = args[1];
     immutable pattern = args[2]; // like "*.{d,di}"
@@ -123,36 +157,5 @@ void main(string[] args)
         exit(1);
     }
 
-    string[][string] pairs;
-
-    auto prod = spawn(&producer, thisTid, dirName, pattern,
-                      minSize, maxSize, workerNums);
-
-    uint counter = 0;
-    bool flag = true;
-    while (flag)
-    {
-        receive(
-            (Tuple!(string, string) pair) {
-                // filename must be unique.
-                if (pair[0] !in pairs)
-                    pairs[pair[0]] = [pair[1]];
-                else
-                    pairs[pair[0]] ~= pair[1];
-            },
-            (bool _) {
-                counter++;
-                if (counter == workerNums)
-                    flag = false;
-            },
-            (Variant _) {
-                throw new Exception("Unexpected typed message.");
-            });
-    }
-
-    foreach (_, v; pairs)
-    {
-        if (v.length > 1)
-            writeln(v);
-    }
+    run(dirName, pattern, minSize, maxSize, workerNums);
 }
