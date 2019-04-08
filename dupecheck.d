@@ -1,4 +1,4 @@
-import core.stdc.stdlib : exit;
+import core.stdc.stdlib;
 import std.algorithm : map;
 import std.array : array;
 import std.concurrency;
@@ -11,8 +11,8 @@ import std.range : iota;
 import std.stdio;
 import std.typecons : Tuple;
 
-enum DEFAULT_MIN_SIZE = 1;
-enum DEFAULT_MAX_SIZE = 10 * 1024; // 10K
+enum defaultMinSize = 1;
+enum defaultMaxSize = 10 * 1024; // 10K
 
 string calculateHash(string fileName)
 {
@@ -39,7 +39,7 @@ void calculator(Tid owner)
     }
 }
 
-void producer(Tid owner, scope string dirName, scope string pattern,
+void producer(Tid owner, string dirName, string pattern,
               ulong minSize, ulong maxSize, size_t workerNums)
 {
     Tid[] tids = 0.iota(workerNums)
@@ -102,48 +102,33 @@ void run(string dirName, string pattern, size_t minSize, size_t maxSize, size_t 
     }
 }
 
-void usage()
+int main(string[] args)
 {
-    stderr.writeln(`dupecheck
-USAGE:
- dupecheck [OPTIONS] directory pattern
- OPTIONS:
-  -h --help   Display this message and exit.
-  --min-size  Minmal file size. (DEFAULT: 10K)
-  --max-size  Max file size. (DEFAULT: 1)
-  --workers   Num worker threads. (DEFAULT: number of logical processors)
-`);
-}
-
-void main(string[] args)
-{
-    bool help;
-    ulong minSize = DEFAULT_MIN_SIZE, maxSize = DEFAULT_MAX_SIZE;
+    ulong minSize = defaultMinSize, maxSize = defaultMaxSize;
     uint workerNums = totalCPUs;
-    args.getopt(
+    auto helpInformation = args.getopt(
         std.getopt.config.caseSensitive,
-        "h|help", &help,
-        "min-size", &minSize,
-        "max-size", &maxSize,
-        "workers", &workerNums
+        "min-size", "Minmal file size (DEFAULT: 10K)", &minSize,
+        "max-size", "Max file size (DEFAULT: 1)", &maxSize,
+        "workers", "Num worker threads (DEFAULT: number of logical processors)", &workerNums
         );
 
-    if (help)
+    if (helpInformation.helpWanted)
     {
-        usage();
-        exit(0);
+        defaultGetoptPrinter("dupecheck [OPTIONS] directory pattern", helpInformation.options);
+        return EXIT_SUCCESS;
     }
 
     if (args.length < 3)
     {
         stderr.writeln("No directory and pattern found.");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if (minSize > maxSize)
     {
         stderr.writeln("max size must be greater than min size.");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if (workerNums < 1)
@@ -154,8 +139,9 @@ void main(string[] args)
     if (!dirName.isDir)
     {
         stderr.writeln("Must be directory.");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     run(dirName, pattern, minSize, maxSize, workerNums);
+    return EXIT_SUCCESS;
 }
