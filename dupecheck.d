@@ -6,6 +6,7 @@ import std.digest : hexDigest;
 import std.digest.md : MD5;
 import std.file;
 import std.getopt;
+import std.meta : AliasSeq;
 import std.parallelism : totalCPUs;
 import std.range : iota;
 import std.stdio;
@@ -80,10 +81,12 @@ void run(string dirName, string pattern, size_t minSize, size_t maxSize, size_t 
         receive(
             (Tuple!(string, string) pair) {
                 // filename must be unique.
-                if (pair[0] !in pairs)
-                    pairs[pair[0]] = [pair[1]];
+                string hash, filename;
+                AliasSeq!(hash, filename) = pair;
+                if (hash !in pairs)
+                    pairs[hash] = [filename];
                 else
-                    pairs[pair[0]] ~= pair[1];
+                    pairs[hash] ~= filename;
             },
             (bool _) {
                 counter++;
